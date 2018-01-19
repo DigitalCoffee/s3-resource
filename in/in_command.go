@@ -10,6 +10,7 @@ import (
 
 	"github.com/concourse/s3-resource"
 	"github.com/concourse/s3-resource/versions"
+	"time"
 )
 
 var ErrMissingPath = errors.New("missing path in request")
@@ -61,7 +62,7 @@ func (command *InCommand) Run(destinationDir string, request InRequest) (InRespo
 
 		remotePath = request.Version.Path
 
-		extraction, ok := versions.Extract(remotePath, request.Source.Regexp)
+		extraction, ok := versions.Extract(remotePath, request.Source.Regexp, time.Now())
 		if !ok {
 			return InResponse{}, fmt.Errorf("regex does not match provided version: %#v", request.Version)
 		}
@@ -196,3 +197,4 @@ func extractArchive(mime, filename string) error {
 
 	return nil
 }
+

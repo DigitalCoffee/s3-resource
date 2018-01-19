@@ -23,6 +23,7 @@ import (
 
 type S3Client interface {
 	BucketFiles(bucketName string, prefixHint string) ([]string, error)
+	GetBucketContents(bucketName string, prefix string) (map[string]*s3.Object, error)
 	BucketFileVersions(bucketName string, remotePath string) ([]string, error)
 
 	UploadFile(bucketName string, remotePath string, localPath string, options UploadFileOptions) (string, error)
@@ -126,7 +127,7 @@ func NewAwsConfig(
 }
 
 func (client *s3client) BucketFiles(bucketName string, prefixHint string) ([]string, error) {
-	entries, err := client.getBucketContents(bucketName, prefixHint)
+	entries, err := client.GetBucketContents(bucketName, prefixHint)
 
 	if err != nil {
 		return []string{}, err
@@ -306,7 +307,7 @@ func (client *s3client) DeleteFile(bucketName string, remotePath string) error {
 	return err
 }
 
-func (client *s3client) getBucketContents(bucketName string, prefix string) (map[string]*s3.Object, error) {
+func (client *s3client) GetBucketContents(bucketName string, prefix string) (map[string]*s3.Object, error) {
 	bucketContents := map[string]*s3.Object{}
 	marker := ""
 
@@ -436,3 +437,4 @@ func (client *s3client) newProgressBar(total int64) *pb.ProgressBar {
 func (client *s3client) isGCSHost() bool {
 	return (client.session.Config.Endpoint != nil && strings.Contains(*client.session.Config.Endpoint, "storage.googleapis.com"))
 }
+

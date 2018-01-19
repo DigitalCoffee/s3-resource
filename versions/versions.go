@@ -7,6 +7,7 @@ import (
 
 	"github.com/concourse/s3-resource"
 	"github.com/cppforlife/go-semi-semantic/version"
+	"time"
 )
 
 func Match(paths []string, pattern string) ([]string, error) {
@@ -32,7 +33,7 @@ func MatchUnanchored(paths []string, pattern string) ([]string, error) {
 	return matched, nil
 }
 
-func Extract(path string, pattern string) (Extraction, bool) {
+func Extract(path string, pattern string, lastModified time.Time) (Extraction, bool) {
 	compiled := regexp.MustCompile(pattern)
 	matches := compiled.FindStringSubmatch(path)
 
@@ -61,6 +62,7 @@ func Extract(path string, pattern string) (Extraction, bool) {
 		Path:          path,
 		Version:       ver,
 		VersionNumber: match,
+		LastModified:  lastModified,
 	}
 
 	return extraction, true
@@ -83,6 +85,9 @@ func (e Extractions) Len() int {
 }
 
 func (e Extractions) Less(i int, j int) bool {
+	if e[i].Version.IsEq(e[j].Version) {
+		return e[i].LastModified.Before(e[j].LastModified)
+	}
 	return e[i].Version.IsLt(e[j].Version)
 }
 
@@ -99,6 +104,9 @@ type Extraction struct {
 
 	// the raw version match
 	VersionNumber string
+
+	// object's last modified time
+	LastModified time.Time
 }
 
 const regexpSpecialChars = `\\\*\.\[\]\(\)\{\}\?\|\^\$\+`
@@ -130,9 +138,15 @@ func GetBucketFileVersions(client s3resource.S3Client, source s3resource.Source)
 	regexp := source.Regexp
 	hint := PrefixHint(regexp)
 
-	paths, err := client.BucketFiles(source.Bucket, hint)
+	entries, err := client.GetBucketContents(source.Bucket, hint)
 	if err != nil {
 		s3resource.Fatal("listing files", err)
+	}
+
+	paths := make([]string, 0, len(entries))
+
+	for _, entry := range entries {
+		paths = append(paths, *entry.Key)
 	}
 
 	matchingPaths, err := Match(paths, source.Regexp)
@@ -142,7 +156,7 @@ func GetBucketFileVersions(client s3resource.S3Client, source s3resource.Source)
 
 	var extractions = make(Extractions, 0, len(matchingPaths))
 	for _, path := range matchingPaths {
-		extraction, ok := Extract(path, regexp)
+		extraction, ok := Extract(path, regexp, *entries[path].LastModified)
 
 		if ok {
 			extractions = append(extractions, extraction)
@@ -153,3 +167,4 @@ func GetBucketFileVersions(client s3resource.S3Client, source s3resource.Source)
 
 	return extractions
 }
+

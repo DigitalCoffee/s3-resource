@@ -11,6 +11,8 @@ import (
 	"github.com/concourse/s3-resource/fakes"
 
 	. "github.com/concourse/s3-resource/check"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"time"
 )
 
 var _ = Describe("Check Command", func() {
@@ -37,11 +39,36 @@ var _ = Describe("Check Command", func() {
 			s3client = &fakes.FakeS3Client{}
 			command = NewCheckCommand(s3client)
 
-			s3client.BucketFilesReturns([]string{
-				"files/abc-0.0.1.tgz",
-				"files/abc-2.33.333.tgz",
-				"files/abc-2.4.3.tgz",
-				"files/abc-3.53.tgz",
+			var path1 = "files/abc-0.0.1.tgz"
+			var path2 = "files/abc-2.33.333.tgz"
+			var path3 = "files/abc-2.4.3.tgz"
+			var path4 = "files/abc-3.53.1493664d.tgz"
+			var path5 = "files/abc-3.53.b487a80f.tgz"
+
+			var now = time.Now()
+			var yesterday = time.Now().AddDate(0,0,-1)
+
+			s3client.GetBucketContentsReturns(map[string]*s3.Object{
+				path1: {
+					Key: &path1,
+					LastModified: &now,
+				},
+				path2: {
+					Key: &path2,
+					LastModified: &now,
+				},
+				path3: {
+					Key: &path3,
+					LastModified: &now,
+				},
+				path4: {
+					Key: &path4,
+					LastModified: &now,
+				},
+				path5: {
+					Key: &path5,
+					LastModified: &yesterday,
+				},
 			}, nil)
 		})
 
@@ -53,7 +80,7 @@ var _ = Describe("Check Command", func() {
 		Context("when there is no previous version", func() {
 			It("includes the latest version only", func() {
 				request.Version.Path = ""
-				request.Source.Regexp = "files/abc-(.*).tgz"
+				request.Source.Regexp = "files/abc-(.*)(\\.\\w{8}).tgz"
 
 				response, err := command.Run(request)
 				Ω(err).ShouldNot(HaveOccurred())
@@ -61,7 +88,7 @@ var _ = Describe("Check Command", func() {
 				Ω(response).Should(HaveLen(1))
 				Ω(response).Should(ConsistOf(
 					s3resource.Version{
-						Path: "files/abc-3.53.tgz",
+						Path: "files/abc-3.53.1493664d.tgz",
 					},
 				))
 			})
@@ -98,7 +125,7 @@ var _ = Describe("Check Command", func() {
 					response, err := command.Run(request)
 					Ω(err).ShouldNot(HaveOccurred())
 
-					Ω(response).Should(HaveLen(3))
+					Ω(response).Should(HaveLen(4))
 					Ω(response).Should(ConsistOf(
 						s3resource.Version{
 							Path: "files/abc-2.4.3.tgz",
@@ -107,7 +134,10 @@ var _ = Describe("Check Command", func() {
 							Path: "files/abc-2.33.333.tgz",
 						},
 						s3resource.Version{
-							Path: "files/abc-3.53.tgz",
+							Path: "files/abc-3.53.1493664d.tgz",
+						},
+						s3resource.Version{
+							Path: "files/abc-3.53.b487a80f.tgz",
 						},
 					))
 				})
@@ -143,3 +173,4 @@ var _ = Describe("Check Command", func() {
 		})
 	})
 })
+

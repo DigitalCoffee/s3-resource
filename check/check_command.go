@@ -5,6 +5,7 @@ import (
 
 	"github.com/concourse/s3-resource"
 	"github.com/concourse/s3-resource/versions"
+	"time"
 )
 
 type CheckCommand struct {
@@ -36,7 +37,7 @@ func (command *CheckCommand) checkByRegex(request CheckRequest) CheckResponse {
 		return nil
 	}
 
-	lastVersion, matched := versions.Extract(request.Version.Path, request.Source.Regexp)
+	lastVersion, matched := versions.Extract(request.Version.Path, request.Source.Regexp, time.Now())
 	if !matched {
 		return latestVersion(extractions)
 	} else {
@@ -104,3 +105,4 @@ func newVersions(lastVersion versions.Extraction, extractions versions.Extractio
 
 	return response
 }
+

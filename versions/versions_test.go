@@ -4,6 +4,7 @@ import (
 	"github.com/concourse/s3-resource/versions"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"time"
 )
 
 type MatchFunc func(paths []string, pattern string) ([]string, error)
@@ -123,7 +124,7 @@ var _ = Describe("PrefixHint", func() {
 var _ = Describe("Extract", func() {
 	Context("when the path does not contain extractable information", func() {
 		It("doesn't extract it", func() {
-			result, ok := versions.Extract("abc.tgz", "abc-(.*).tgz")
+			result, ok := versions.Extract("abc.tgz", "abc-(.*).tgz", time.Now())
 			Ω(ok).Should(BeFalse())
 			Ω(result).Should(BeZero())
 		})
@@ -131,7 +132,7 @@ var _ = Describe("Extract", func() {
 
 	Context("when the path contains extractable information", func() {
 		It("extracts it", func() {
-			result, ok := versions.Extract("abc-105.tgz", "abc-(.*).tgz")
+			result, ok := versions.Extract("abc-105.tgz", "abc-(.*).tgz", time.Now())
 			Ω(ok).Should(BeTrue())
 
 			Ω(result.Path).Should(Equal("abc-105.tgz"))
@@ -140,7 +141,7 @@ var _ = Describe("Extract", func() {
 		})
 
 		It("extracts semantic version numbers", func() {
-			result, ok := versions.Extract("abc-1.0.5.tgz", "abc-(.*).tgz")
+			result, ok := versions.Extract("abc-1.0.5.tgz", "abc-(.*).tgz", time.Now())
 			Ω(ok).Should(BeTrue())
 
 			Ω(result.Path).Should(Equal("abc-1.0.5.tgz"))
@@ -149,7 +150,7 @@ var _ = Describe("Extract", func() {
 		})
 
 		It("extracts versions with more than 3 segments", func() {
-			result, ok := versions.Extract("abc-1.0.6.1-rc7.tgz", "abc-(.*).tgz")
+			result, ok := versions.Extract("abc-1.0.6.1-rc7.tgz", "abc-(.*).tgz", time.Now())
 			Ω(ok).Should(BeTrue())
 
 			Ω(result.VersionNumber).Should(Equal("1.0.6.1-rc7"))
@@ -157,7 +158,7 @@ var _ = Describe("Extract", func() {
 		})
 
 		It("takes the first match if there are many", func() {
-			result, ok := versions.Extract("abc-1.0.5-def-2.3.4.tgz", "abc-(.*)-def-(.*).tgz")
+			result, ok := versions.Extract("abc-1.0.5-def-2.3.4.tgz", "abc-(.*)-def-(.*).tgz", time.Now())
 			Ω(ok).Should(BeTrue())
 
 			Ω(result.Path).Should(Equal("abc-1.0.5-def-2.3.4.tgz"))
@@ -166,7 +167,7 @@ var _ = Describe("Extract", func() {
 		})
 
 		It("extracts a named group called 'version' above all others", func() {
-			result, ok := versions.Extract("abc-1.0.5-def-2.3.4.tgz", "abc-(.*)-def-(?P<version>.*).tgz")
+			result, ok := versions.Extract("abc-1.0.5-def-2.3.4.tgz", "abc-(.*)-def-(?P<version>.*).tgz", time.Now())
 			Ω(ok).Should(BeTrue())
 
 			Ω(result.Path).Should(Equal("abc-1.0.5-def-2.3.4.tgz"))
@@ -175,3 +176,4 @@ var _ = Describe("Extract", func() {
 		})
 	})
 })
+
